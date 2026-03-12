@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <base target="_top" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hệ Thống Quét Mã QR</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+      :root{
+        --primary: #0b5bd3;
+        --primary-2: #0a3d91;
+        --ink: #0f172a;
+        --muted: #64748b;
+        --line: rgba(15, 23, 42, .10);
+
+        --bg: radial-gradient(1200px 600px at 20% 10%, #eaf2ff 0%, transparent 60%),
+              radial-gradient(900px 450px at 90% 30%, #e9fff3 0%, transparent 55%),
+              linear-gradient(135deg, #f6f8ff 0%, #eef2ff 40%, #f3f7ff 100%);
+
+        --card: rgba(255,255,255,.78);
+        --card-solid: #ffffff;
+
+        --success: #16a34a;
+        --danger: #d32f2f;
+
+        --shadow-lg: 0 22px 70px rgba(2, 6, 23, .14);
+        --shadow-md: 0 10px 30px rgba(2, 6, 23, .10);
+        --shadow-sm: 0 6px 18px rgba(2, 6, 23, .08);
+
+        --r-xl: 22px;
+        --r-lg: 16px;
+        --r-md: 12px;
+
+        --ring: 0 0 0 3px rgba(11, 91, 211, .18);
+      }
+
+      *{ box-sizing:border-box; }
+      body{
+        margin:0;
+        padding:24px;
+        font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        background: var(--bg);
+        min-height:100vh;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        color: var(--ink);
+      }
+
+      .main-card{
+        width:100%;
+        max-width: 680px;
+        border-radius: var(--r-xl);
+        overflow:hidden;
+        background: var(--card);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,.6);
+        box-shadow: var(--shadow-lg);
+        transform: translateZ(0);
+      }
+
+      .header{
+        padding: 26px 22px 20px;
+        color:#fff;
+        background:
+          radial-gradient(600px 220px at 30% 0%, rgba(255,255,255,.20) 0%, transparent 60%),
+          linear-gradient(110deg, #061a44 0%, #0a3d91 40%, #0b5bd3 100%);
+        position:relative;
+      }
+      .header::after{
+        content:"";
+        position:absolute;
+        inset:auto 0 0 0;
+        height:1px;
+        background: rgba(255,255,255,.18);
+      }
+      .header h2{
+        margin:0;
+        font-weight:800;
+        font-size: 18px;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+      }
+      .header p{
+        margin:8px 0 0;
+        font-size: 13px;
+        opacity:.9;
+        font-weight: 400;
+      }
+
+      .tabs-container{
+        padding: 14px 16px 0;
+        display:flex;
+        gap:10px;
+      }
+      .tab-btn{
+        flex:1;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,.7);
+        color: var(--muted);
+        padding: 12px 12px;
+        border-radius: 999px;
+        cursor:pointer;
+        font-weight:800;
+        font-size: 13.5px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        gap:8px;
+        transition: transform .18s ease, box-shadow .18s ease, background .18s ease, color .18s ease, border-color .18s ease;
+        box-shadow: 0 1px 0 rgba(2,6,23,.04);
+        user-select:none;
+      }
+      .tab-btn:hover{
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+        border-color: rgba(11, 91, 211, .25);
+      }
+      .tab-btn.active{
+        background: linear-gradient(180deg, rgba(11,91,211,1) 0%, rgba(10,61,145,1) 100%);
+        border-color: rgba(255,255,255,.22);
+        color:#fff;
+        box-shadow: 0 12px 28px rgba(11, 91, 211, .24);
+      }
+
+      .tab-content{
+        display:none;
+        padding: 18px 18px 10px;
+        animation: fadeUp .35s ease;
+      }
+      .tab-content.active{ display:block; }
+      @keyframes fadeUp{
+        from{ opacity:0; transform: translateY(8px); }
+        to{ opacity:1; transform: translateY(0); }
+      }
+
+      /* Camera */
+      #video-wrapper{
+        position: relative;
+        width:100%;
+        border-radius: var(--r-lg);
+        overflow:hidden;
+        background:#000;
+        box-shadow: var(--shadow-md);
+        border: 1px solid rgba(255,255,255,.18);
+      }
+      video{ width:100%; display:block; }
+
+      .camera-guide{
+        position:absolute;
+        top:50%; left:50%;
+        transform: translate(-50%, -50%);
+        width: 210px; height: 210px;
+        border-radius: 18px;
+        border: 2px solid rgba(255,255,255,.70);
+        box-shadow:
+          0 0 0 9999px rgba(0,0,0,.55),
+          0 0 25px rgba(255,255,255,.18);
+        pointer-events:none;
+      }
+
+      .camera-footer{
+        text-align:center;
+        margin-top: 14px;
+        padding-bottom: 8px;
+      }
+      .camera-footer small{
+        color: rgba(15,23,42,.72);
+        display:block;
+      }
+
+      /* Upload zone */
+      .upload-zone{
+        border: 1.5px dashed rgba(15, 23, 42, .22);
+        border-radius: var(--r-lg);
+        padding: 22px 18px;
+        text-align:center;
+        background:
+          radial-gradient(700px 200px at 30% 10%, rgba(11,91,211,.08) 0%, transparent 55%),
+          rgba(255,255,255,.75);
+        transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease, background .18s ease;
+        cursor:pointer;
+        position:relative;
+        min-height: 230px;
+        display:flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 6px;
+      }
+      .upload-zone:hover{
+        border-color: rgba(11, 91, 211, .55);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+        background:
+          radial-gradient(700px 200px at 30% 10%, rgba(11,91,211,.12) 0%, transparent 55%),
+          rgba(255,255,255,.82);
+      }
+
+      .icon-upload{
+        font-size: 46px;
+        margin-bottom: 8px;
+        filter: drop-shadow(0 6px 14px rgba(11,91,211,.18));
+      }
+      .text-main{
+        font-size: 16px;
+        font-weight: 900;
+        color: var(--ink);
+      }
+      .text-sub{
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .badge-paste{
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        gap: 6px;
+        width: fit-content;
+        margin: 10px auto 0;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 900;
+        color: rgba(15,23,42,.80);
+        background: rgba(148,163,184,.22);
+        border: 1px solid rgba(148,163,184,.35);
+      }
+
+      #preview-img{
+        max-width: 100%;
+        max-height: 210px;
+        margin-top: 14px;
+        border-radius: 14px;
+        box-shadow: 0 10px 28px rgba(2,6,23,.12);
+        display:none;
+        object-fit: contain;
+      }
+
+      /* Inputs */
+      .input-field{
+        width:100%;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid rgba(15,23,42,.16);
+        background: rgba(255,255,255,.82);
+        font-size: 14.5px;
+        outline:none;
+        transition: box-shadow .18s ease, border-color .18s ease, background .18s ease;
+      }
+      .input-field:focus{
+        border-color: rgba(11,91,211,.55);
+        box-shadow: var(--ring);
+        background: #fff;
+      }
+
+      /* Buttons */
+      .btn-group{ display:flex; gap:10px; flex-wrap: wrap; }
+      .btn{
+        border:none;
+        padding: 10px 14px;
+        border-radius: 12px;
+        font-size: 13.5px;
+        font-weight: 900;
+        cursor:pointer;
+        text-decoration:none;
+        transition: transform .18s ease, box-shadow .18s ease, filter .18s ease, background .18s ease;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        gap: 8px;
+        user-select:none;
+      }
+      .btn:active{ transform: translateY(1px); }
+
+      .btn-copy{
+        background: rgba(148,163,184,.25);
+        color: rgba(15,23,42,.85);
+        border: 1px solid rgba(148,163,184,.35);
+      }
+      .btn-copy:hover{
+        box-shadow: var(--shadow-sm);
+        filter: brightness(1.02);
+      }
+
+      .btn-go{
+        background: linear-gradient(180deg, rgba(22,163,74,1) 0%, rgba(21,128,61,1) 100%);
+        color:#fff;
+        box-shadow: 0 10px 24px rgba(22,163,74,.22);
+      }
+      .btn-go:hover{
+        box-shadow: 0 14px 34px rgba(22,163,74,.28);
+        filter: brightness(1.02);
+      }
+
+      .btn-danger{
+        background: linear-gradient(180deg, rgba(211,47,47,1) 0%, rgba(170,30,30,1) 100%);
+        color:#fff;
+        box-shadow: 0 10px 24px rgba(211,47,47,.18);
+      }
+      .btn-danger:hover{
+        box-shadow: 0 14px 34px rgba(211,47,47,.24);
+        filter: brightness(1.02);
+      }
+
+      /* Result area */
+      #result-area{
+        margin: 0 18px 18px;
+        padding: 16px;
+        border-radius: var(--r-lg);
+        display:none;
+        background:
+          radial-gradient(700px 250px at 20% 0%, rgba(22,163,74,.12) 0%, transparent 55%),
+          rgba(255,255,255,.80);
+        border: 1px solid rgba(22,163,74,.22);
+        box-shadow: var(--shadow-md);
+      }
+      .result-title{
+        font-size: 12px;
+        font-weight: 900;
+        color: rgba(21,128,61,.95);
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        display:flex;
+        align-items:center;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .result-title::before{ content:"✅"; font-size: 14px; }
+
+      .result-link{
+        display:block;
+        padding: 12px 12px;
+        border-radius: 12px;
+        background: rgba(22,163,74,.08);
+        border: 1px dashed rgba(22,163,74,.28);
+        color: rgba(15,23,42,.90);
+        font-weight: 800;
+        font-size: 14px;
+        text-decoration:none;
+        word-break: break-all;
+        margin-bottom: 12px;
+      }
+
+      /* Toast */
+      .toast{
+        position: fixed;
+        left: 50%;
+        bottom: 22px;
+        transform: translateX(-50%) translateY(20px);
+        background: rgba(15,23,42,.92);
+        color: #fff;
+        padding: 10px 12px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 700;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .18s ease, transform .18s ease;
+        box-shadow: 0 14px 34px rgba(2,6,23,.30);
+        z-index: 9999;
+        max-width: calc(100vw - 32px);
+        text-align:center;
+        white-space: nowrap;
+        overflow:hidden;
+        text-overflow: ellipsis;
+      }
+      .toast.show{
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+
+      @media (max-width: 420px){
+        body{ padding:16px; }
+        .tabs-container{ padding: 12px 12px 0; }
+        .tab-content{ padding: 16px 12px 10px; }
+        #result-area{ margin: 0 12px 12px; }
+        .header{ padding: 22px 16px 18px; }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="main-card">
+      <div class="header">
+        <h2>UBND PHƯỜNG TÂY THẠNH</h2>
+        <p>Cổng thông tin quét mã QR trực tuyến</p>
+      </div>
+
+      <div class="tabs-container">
+        <button class="tab-btn" onclick="switchTab(event, 'tabCamera')"><span>📷</span> Camera</button>
+        <button class="tab-btn active" onclick="switchTab(event, 'tabUpload')"><span>📂</span> Tải ảnh / Dán</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tabUrl')"><span>🔗</span> Link</button>
+      </div>
+
+      <div id="tabCamera" class="tab-content">
+        <div id="video-wrapper">
+          <video id="video-preview" playsinline></video>
+          <div class="camera-guide"></div>
+        </div>
+        <div class="camera-footer">
+          <small>Đưa mã QR vào khung vuông để tự động quét</small>
+          <button class="btn btn-danger" style="margin-top:10px; font-size: 12px;" onclick="stopCamera()">Tắt Camera</button>
+        </div>
+      </div>
+
+      <div id="tabUpload" class="tab-content active">
+        <label for="fileInput" class="upload-zone">
+          <span class="icon-upload">☁️</span>
+          <div class="text-main">Nhấn để chọn ảnh QR</div>
+          <div class="text-sub">Hỗ trợ JPG, PNG, GIF</div>
+          <div class="badge-paste">Hoặc nhấn Ctrl + V để dán</div>
+          <img id="preview-img" alt="Xem trước ảnh QR">
+        </label>
+        <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleFiles(this.files)">
+      </div>
+
+      <div id="tabUrl" class="tab-content">
+        <p style="margin-top:0; color: rgba(15,23,42,.75); font-weight:700;">Dán đường dẫn ảnh vào bên dưới:</p>
+        <div style="display:flex; gap: 10px; align-items:center;">
+          <input type="text" id="urlInput" class="input-field" placeholder="https://example.com/qr.png">
+          <button class="btn btn-go" onclick="scanFromUrl()" style="white-space: nowrap;">Quét</button>
+        </div>
+        <p style="margin:10px 0 0; color: rgba(15,23,42,.55); font-size: 12px;">
+          Lưu ý: Một số link ảnh sẽ bị chặn do CORS (bảo mật trình duyệt).
+        </p>
+      </div>
+
+      <div id="result-area">
+        <div class="result-title">Đã tìm thấy nội dung</div>
+        <a href="#" id="result-link" class="result-link" target="_blank">...</a>
+
+        <div class="btn-group">
+          <a id="btn-visit" href="#" target="_blank" class="btn btn-go">Truy cập ngay ➡</a>
+          <button onclick="copyResult()" class="btn btn-copy">Sao chép</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast">...</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
+    <script>
+      // ===== Helpers UI =====
+      function toast(msg) {
+        var t = document.getElementById("toast");
+        t.textContent = msg;
+        t.classList.add("show");
+        clearTimeout(window.__toastTimer);
+        window.__toastTimer = setTimeout(() => t.classList.remove("show"), 1700);
+      }
+
+      // 1. Chuyển Tab
+      function switchTab(evt, tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+        document.getElementById(tabId).classList.add('active');
+        evt.currentTarget.classList.add('active');
+
+        if(tabId === 'tabCamera') startCamera();
+        else stopCamera();
+      }
+
+      // 2. Paste ảnh (Ctrl+V)
+      document.addEventListener('paste', function(e) {
+        if (!document.getElementById('tabUpload').classList.contains('active')) return;
+
+        var items = e.clipboardData.items;
+        for (var i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf("image") !== -1) {
+            var blob = items[i].getAsFile();
+            handleFiles([blob]);
+          }
+        }
+      });
+
+      // 3. Xử lý File ảnh
+      function handleFiles(files) {
+        if (!files.length) return;
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var url = e.target.result;
+
+          var img = document.getElementById("preview-img");
+          img.src = url;
+          img.style.display = "inline-block";
+
+          scanImage(url);
+        };
+        reader.readAsDataURL(files[0]);
+      }
+
+      // 4. Quét từ URL Input
+      function scanFromUrl() {
+        var url = document.getElementById('urlInput').value.trim();
+        if(!url) return toast("Bạn chưa nhập link ảnh.");
+        scanImage(url, true);
+      }
+
+      // 5. Hàm Quét Ảnh (Core)
+      function scanImage(src, isUrl = false) {
+        var img = new Image();
+        if(isUrl) img.crossOrigin = "Anonymous";
+        img.onload = function() {
+          var cvs = document.createElement("canvas");
+          var ctx = cvs.getContext("2d");
+          cvs.width = img.width; cvs.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          try {
+            var imageData = ctx.getImageData(0,0, cvs.width, cvs.height);
+            var code = jsQR(imageData.data, imageData.width, imageData.height);
+            if(code) {
+              showResult(code.data);
+              toast("Quét thành công!");
+            } else {
+              toast("Không tìm thấy mã QR nào!");
+            }
+          } catch(e) {
+            toast("Lỗi CORS hoặc ảnh không hợp lệ.");
+          }
+        };
+        img.onerror = () => toast("Không tải được ảnh.");
+        img.src = src;
+      }
+
+      // 6. Camera Logic
+      var video = document.getElementById("video-preview");
+      var streamObj = null;
+      var scanning = false;
+
+      function startCamera() {
+        if(scanning) return;
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+          .then(function(stream){
+            streamObj = stream;
+            video.srcObject = stream;
+            video.play();
+            scanning = true;
+            requestAnimationFrame(tick);
+          })
+          .catch(err => {
+            console.log("Camera Error", err);
+            toast("Không mở được camera (thiếu quyền?).");
+          });
+      }
+
+      function stopCamera() {
+        if(streamObj) {
+          streamObj.getTracks().forEach(t => t.stop());
+          streamObj = null;
+        }
+        scanning = false;
+      }
+
+      function tick() {
+        if(!scanning) return;
+        if(video.readyState === video.HAVE_ENOUGH_DATA) {
+          var cvs = document.createElement("canvas");
+          cvs.width = video.videoWidth; cvs.height = video.videoHeight;
+          var ctx = cvs.getContext("2d");
+          ctx.drawImage(video, 0, 0);
+          var imageData = ctx.getImageData(0,0, cvs.width, cvs.height);
+          var code = jsQR(imageData.data, imageData.width, imageData.height);
+          if(code) {
+            showResult(code.data);
+            toast("Quét thành công!");
+            // stopCamera(); // bật nếu muốn tắt camera sau khi quét
+          }
+        }
+        requestAnimationFrame(tick);
+      }
+
+      // 7. Hiển thị Kết quả
+      function showResult(text) {
+        var box = document.getElementById("result-area");
+        var linkEl = document.getElementById("result-link");
+        var btnVisit = document.getElementById("btn-visit");
+
+        box.style.display = "block";
+        linkEl.innerText = text;
+
+        if(text.startsWith("http")) {
+          linkEl.href = text;
+          btnVisit.href = text;
+          btnVisit.style.display = "inline-flex";
+        } else {
+          linkEl.href = "#";
+          btnVisit.style.display = "none";
+        }
+
+        box.scrollIntoView({behavior: "smooth"});
+      }
+
+      function copyResult() {
+        var text = document.getElementById("result-link").innerText;
+        navigator.clipboard.writeText(text);
+        toast("Đã sao chép nội dung!");
+      }
+    </script>
+  </body>
+</html>
